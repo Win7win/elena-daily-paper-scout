@@ -1,0 +1,10 @@
+requests
+feedparser
+beautifulsoup4
+lxml
+pydantic
+python-dotenv
+tenacity
+rich
+pdfplumber
+lark-oapi>=1.5.3
