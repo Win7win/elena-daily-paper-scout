@@ -1,6 +1,6 @@
 # elena-daily-paper-scout
 
-> Daily paper scout — scans arXiv / HuggingFace / GitHub Trending, ranks with an LLM, and pushes interactive cards to Feishu (Lark) with per-paper feedback buttons.
+> Daily paper scout — scans arXiv / HuggingFace / GitHub Trending, ranks with an LLM, and pushes interactive cards to Feishu (Lark) with per-paper feedback buttons. · [中文 README](./README_CN.md)
 
 A Feishu (Lark) bot that scans arXiv / Hugging Face Daily Papers / GitHub
 Trending once a day, has an LLM judge what's worth reading, and pushes the
