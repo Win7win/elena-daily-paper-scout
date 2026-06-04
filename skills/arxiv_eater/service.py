@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from core.archive import upsert_papers
 from core.llm import LLMUnavailableError, chat_completion
@@ -16,7 +16,7 @@ from core.settings import ARXIV_CATEGORIES, DAILY_PAPER_FETCH_LIMIT, DAILY_PAPER
 from skills.arxiv_eater.config import load_eater_config
 from skills.arxiv_eater.pdf_ops import cleanup_temp_files, download_pdf, extract_text_with_pdfplumber, parse_pdf_with_mineru
 from skills.arxiv_eater.section_extract import extract_signal_sections
-from skills.daily_finder.arxiv_client import search_arxiv
+from skills.daily_finder.arxiv_client import fetch_recent_rss, search_arxiv
 
 
 def build_arxiv_query(topics: list[str]) -> str:
@@ -28,25 +28,51 @@ def build_arxiv_query(topics: list[str]) -> str:
     return category_query
 
 
+def _dedup_by_id(items: list[CandidateItem]) -> list[CandidateItem]:
+    seen: set[str] = set()
+    out: list[CandidateItem] = []
+    for item in sorted(items, key=lambda it: it.published_at, reverse=True):
+        if item.id in seen:
+            continue
+        seen.add(item.id)
+        out.append(item)
+    return out
+
+
+def _topic_keyword_filter(topics: list[str], items: list[CandidateItem]) -> list[CandidateItem]:
+    phrases = [t.lower() for t in topics if t.strip()]
+    if not phrases:
+        return items
+    tokens = {tok for phrase in phrases for tok in phrase.split() if len(tok) >= 4}
+    matched: list[CandidateItem] = []
+    for item in items:
+        hay = f"{item.title} {item.summary}".lower()
+        if any(p in hay for p in phrases) or any(tok in hay for tok in tokens):
+            matched.append(item)
+    return matched
+
+
 def search_topic_papers(topics: list[str], days_back: int, max_results: int = DAILY_PAPER_FETCH_LIMIT) -> list[CandidateItem]:
     normalized_topics = [topic.strip() for topic in topics if topic.strip()]
-    if not normalized_topics:
-        return search_arxiv(query=build_arxiv_query([]), max_results=max_results, days_back=days_back)
+    primary: list[CandidateItem] = []
+    try:
+        primary = search_arxiv(
+            query=build_arxiv_query(normalized_topics),
+            max_results=max_results,
+            days_back=days_back,
+        )
+    except Exception:
+        primary = []
+    if primary:
+        return _dedup_by_id(primary)
 
-    per_topic_limit = max(1, max_results // len(normalized_topics))
-    remainder = max_results % len(normalized_topics)
-    merged: list[CandidateItem] = []
-    seen_ids: set[str] = set()
-    for index, topic in enumerate(normalized_topics):
-        topic_limit = per_topic_limit + (1 if index < remainder else 0)
-        items = search_arxiv(query=build_arxiv_query([topic]), max_results=topic_limit, days_back=days_back)
-        for item in items:
-            if item.id in seen_ids:
-                continue
-            merged.append(item)
-            seen_ids.add(item.id)
-    merged.sort(key=lambda item: item.published_at, reverse=True)
-    return merged
+    rss_items = fetch_recent_rss(ARXIV_CATEGORIES)
+    if days_back is not None:
+        cutoff = datetime.now(timezone.utc) - timedelta(days=days_back)
+        rss_items = [it for it in rss_items if it.published_at >= cutoff]
+    filtered = _topic_keyword_filter(normalized_topics, rss_items)
+    pool = filtered if filtered else rss_items
+    return _dedup_by_id(pool)[:max_results]
 
 
 def _fallback_rank(topics: list[str], candidates: list[CandidateItem], top_k: int) -> list[CandidateItem]:
