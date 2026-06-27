@@ -111,7 +111,7 @@ def rank_candidates_for_focus(topics: list[str], candidates: list[CandidateItem]
             system_prompt=eater_rank_system_prompt(),
             user_prompt=user_prompt,
             temperature=0.1,
-            max_tokens=500,
+            max_tokens=1000,
         )
         selected_ids = json.loads(raw).get("selected_ids", [])[:top_k]
         selected_map = {item.id: item for item in candidates}
@@ -176,7 +176,7 @@ def _llm_analyze(item: CandidateItem, topics: list[str], sections: dict[str, str
         "framework_section": sections["framework"][:3000],
         "results_section": sections["results"][:3000],
     }
-    max_tokens = 1200 if mode == "deep" else 700
+    max_tokens = 2800 if mode == "deep" else 1500
     raw = chat_completion(
         system_prompt=eater_analyze_system_prompt(mode),
         user_prompt=json.dumps(payload, ensure_ascii=False),

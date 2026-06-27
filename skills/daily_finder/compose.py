@@ -78,7 +78,7 @@ def compose_hf_papers(topics: list[str], hf_items: list[CandidateItem]) -> list[
             system_prompt=compose_hf_system_prompt(),
             user_prompt=user_prompt,
             temperature=0.2,
-            max_tokens=900,
+            max_tokens=1800,
         )
         parsed = json.loads(raw)
         return [DailyPaperSummary(**item) for item in parsed.get("hf_papers", [])]
@@ -126,7 +126,7 @@ def compose_daily_digest(
             system_prompt=compose_digest_system_prompt(),
             user_prompt=user_prompt,
             temperature=0.2,
-            max_tokens=900,
+            max_tokens=1800,
         )
         parsed = json.loads(raw)
         parsed["hf_papers"] = [paper.model_dump(mode="json") for paper in hf_papers]

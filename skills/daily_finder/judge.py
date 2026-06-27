@@ -118,7 +118,7 @@ def judge_candidates(memory: dict, candidates: list[CandidateItem]) -> list[Judg
         candidates_serialized=json.dumps(serialized, ensure_ascii=False, indent=2),
     )
     try:
-        raw = chat_completion(system_prompt=system_prompt, user_prompt=user_prompt, temperature=0.1, max_tokens=500)
+        raw = chat_completion(system_prompt=system_prompt, user_prompt=user_prompt, temperature=0.1, max_tokens=1200)
         parsed = json.loads(raw)
         selected = parsed.get("selected", [])[:MAX_FINAL_SEND_COUNT]
         return [JudgedItem(**item) for item in selected]
